@@ -344,6 +344,10 @@ class ImprovedVKParser:
         logger.info(f"   📊 Обработано пользователей: {processed_count}")
         logger.info(f"   📨 Отправлено сообщений: {messages_sent}")
         
+        # Отправляем отчет в Telegram (если настроен)
+        if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
+            self.send_telegram_report(processed_count, messages_sent)
+        
         return processed_count, messages_sent
         
     def update_stats(self, processed_count: int, messages_sent: int):
@@ -363,6 +367,42 @@ class ImprovedVKParser:
         self.birthday_data['stats'][today]['processed_users'] += processed_count
         self.birthday_data['stats'][today]['messages_sent'] += messages_sent
         self.birthday_data['stats'][today]['runs'] += 1
+        
+    def send_telegram_report(self, processed_count: int, messages_sent: int):
+        """Отправка отчета в Telegram"""
+        try:
+            import telegram
+            import asyncio
+            
+            if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
+                logger.warning("⚠️ Telegram токен или chat_id не настроены")
+                return
+                
+            bot = telegram.Bot(token=TELEGRAM_TOKEN)
+            
+            # Формируем отчет
+            report_message = f"""🎂 Отчет о проверке дней рождения
+
+📊 Результаты:
+✅ Обработано пользователей: {processed_count}
+📨 Отправлено сообщений: {messages_sent}
+⏰ Время: {datetime.now().strftime('%d.%m.%Y %H:%M')}
+
+{'🎉 Отличная работа! Сообщения отправлены!' if messages_sent > 0 else '😔 Сообщений не отправлено, но система работает'}"""
+            
+            # Отправляем сообщение асинхронно
+            async def send_message():
+                await bot.send_message(
+                    chat_id=str(TELEGRAM_CHAT_ID),
+                    text=report_message
+                )
+            
+            asyncio.run(send_message())
+            
+            logger.info("✅ Отчет отправлен в Telegram")
+            
+        except Exception as e:
+            logger.error(f"❌ Ошибка при отправке отчета в Telegram: {e}")
 
 def main():
     """Основная функция"""
